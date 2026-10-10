@@ -1,408 +1,285 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
-import Container from "react-bootstrap/Container";
-import Row from "react-bootstrap/Row";
-import Col from "react-bootstrap/Col";
-import Card from "react-bootstrap/Card";
-import Button from "react-bootstrap/Button";
-import Alert from "react-bootstrap/Alert";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Button,
+  Alert,
+  Spinner,
+} from "react-bootstrap";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import {
   faHeart,
   faCartShopping,
-  faBolt
+  faBolt,
 } from "@fortawesome/free-solid-svg-icons";
 
+import "../app.css";
 
-// Men Images
-import men1 from "../assets/p11.jpeg";
-import men2 from "../assets/p12.jpeg";
-import men3 from "../assets/p2.jpeg";
+// Existing watch images
+import watch1 from "../assets/p11.jpeg";
+import watch2 from "../assets/p12.jpeg";
+import watch3 from "../assets/p2.jpeg";
+import watch4 from "../assets/p3.jpeg";
+import watch5 from "../assets/p4.jpeg";
+import watch6 from "../assets/p5.jpeg";
 
-// Women Images
-import women1 from "../assets/tw.jpeg";
-import women2 from "../assets/pw.jpeg";
-import women3 from "../assets/classic.jpeg";
-
-// Kids Images
-import kids1 from "../assets/ks.jpeg";
-import kids2 from "../assets/kd.jpeg";
-import kids3 from "../assets/kc.jpeg";
-
+// Map MongoDB image filenames to imported images
+const watchImages = {
+  "p11.jpeg": watch1,
+  "p12.jpeg": watch2,
+  "p2.jpeg": watch3,
+  "p3.jpeg": watch4,
+  "p4.jpeg": watch5,
+  "p5.jpeg": watch6,
+};
 
 function Products() {
+  const navigate = useNavigate();
 
-  const [message, setMessage] = useState("");
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
+  // Fetch products from MongoDB through the backend API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch(
+          "http://localhost:5000/api/products"
+        );
 
-  // Products
+        const data = await response.json();
 
-  const products = [
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Unable to load products"
+          );
+        }
 
-    // Men
+        setProducts(data);
+      } catch (error) {
+        console.error("Fetch products error:", error);
 
-    {
-      id: 1,
-      name: "Classic Black Watch",
-      category: "Men",
-      description:
-        "Elegant black watch for everyday use.",
-      price: 2500,
-      image: men1
-    },
+        setError(
+          "Unable to load products. Please check your backend server."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    {
-      id: 2,
-      name: "Luxury Silver Watch",
-      category: "Men",
-      description:
-        "Stylish silver watch with a premium design.",
-      price: 4500,
-      image: men2
-    },
+    fetchProducts();
+  }, []);
 
-    {
-      id: 3,
-      name: "Golden Classic Watch",
-      category: "Men",
-      description:
-        "Classic golden watch for a luxurious look.",
-      price: 5000,
-      image: men3
-    },
-
-
-    // Women
-
-    {
-      id: 4,
-      name: "Elegant Women Watch",
-      category: "Women",
-      description:
-        "Elegant watch designed for women.",
-      price: 3000,
-      image: women1
-    },
-
-    {
-      id: 5,
-      name: "Premium Women Watch",
-      category: "Women",
-      description:
-        "Premium stylish watch for women.",
-      price: 4000,
-      image: women2
-    },
-
-    {
-      id: 6,
-      name: "Classic Women Watch",
-      category: "Women",
-      description:
-        "Classic watch with a beautiful design.",
-      price: 3500,
-      image: women3
-    },
-
-
-    // Kids
-
-    {
-      id: 7,
-      name: "Kids Sport Watch",
-      category: "Kids",
-      description:
-        "Fun and stylish watch for kids.",
-      price: 1500,
-      image: kids1
-    },
-
-    {
-      id: 8,
-      name: "Kids Digital Watch",
-      category: "Kids",
-      description:
-        "Simple digital watch for kids.",
-      price: 1800,
-      image: kids2
-    },
-
-    {
-      id: 9,
-      name: "Kids Classic Watch",
-      category: "Kids",
-      description:
-        "Cute classic watch for kids.",
-      price: 2000,
-      image: kids3
-    }
-
-  ];
-
-
-  // Add to Cart
-
-  const addToCart = (product) => {
-
-    const oldCart =
-      JSON.parse(localStorage.getItem("watchCart")) || [];
-
-
-    const existingProduct = oldCart.find(
-      (item) => item.id === product.id
-    );
-
-
-    let updatedCart;
-
-
-    if (existingProduct) {
-
-      updatedCart = oldCart.map((item) =>
-        item.id === product.id
-          ? {
-              ...item,
-              quantity: item.quantity + 1
-            }
-          : item
+  // ADD TO CART
+  // ADD TO CART - MongoDB
+  const addToCart = async (product) => {
+    try {
+      // Get logged-in user
+      const loggedInUser = JSON.parse(
+        localStorage.getItem("loggedInUser")
       );
 
-    } else {
+      if (!loggedInUser || !loggedInUser._id) {
+        alert("Please login first!");
+        navigate("/");
+        return;
+      }
 
-      updatedCart = [
-        ...oldCart,
+      // Send product to MongoDB backend
+      const response = await fetch(
+        `http://localhost:5000/api/cart/${loggedInUser._id}`,
         {
-          ...product,
-          quantity: 1
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            product: {
+              productId: product._id,
+              name: product.name,
+              price: product.price,
+              image: product.image,
+              brand: product.brand || "TIMEZONE",
+              quantity: 1,
+            },
+          }),
         }
-      ];
+      );
 
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to add product");
+      }
+
+      alert(`${product.name} added to cart successfully!`);
+    } catch (error) {
+      console.error("Add to cart error:", error);
+      alert(error.message || "Unable to connect to cart database.");
+    }
+  };
+
+  // ADD TO WISHLIST
+  const addToWishlist = (product) => {
+    const oldWishlist =
+      JSON.parse(localStorage.getItem("watchWishlist")) || [];
+
+    const alreadyExists = oldWishlist.some(
+      (item) => item.id === product._id
+    );
+
+    if (alreadyExists) {
+      alert("This product is already in your wishlist!");
+      return;
     }
 
+    const updatedWishlist = [
+      ...oldWishlist,
+      {
+        ...product,
+        id: product._id,
+        image: watchImages[product.image] || product.image,
+      },
+    ];
 
     localStorage.setItem(
-      "watchCart",
-      JSON.stringify(updatedCart)
+      "watchWishlist",
+      JSON.stringify(updatedWishlist)
     );
 
-
-    setMessage(
-      `${product.name} added to cart!`
-    );
-
+    alert(`${product.name} added to wishlist successfully!`);
   };
 
+  // BUY NOW
+  const buyNow = (product) => {
+    const selectedProduct = {
+      ...product,
+      id: product._id,
+      image: watchImages[product.image] || product.image,
+      quantity: 1,
+    };
 
-  // Add to Wishlist
-
-  const addToWishlist = (product) => {
-
-    const oldWishlist =
-      JSON.parse(
-        localStorage.getItem("watchWishlist")
-      ) || [];
-
-
-    const alreadyExists = oldWishlist.find(
-      (item) => item.id === product.id
+    localStorage.setItem(
+      "buyNowProduct",
+      JSON.stringify(selectedProduct)
     );
 
-
-    if (!alreadyExists) {
-
-      const updatedWishlist = [
-        ...oldWishlist,
-        product
-      ];
-
-
-      localStorage.setItem(
-        "watchWishlist",
-        JSON.stringify(updatedWishlist)
-      );
-
-
-      setMessage(
-        `${product.name} added to wishlist!`
-      );
-
-    } else {
-
-      setMessage(
-        "This product is already in your wishlist."
-      );
-
-    }
-
+    navigate("/buynow");
   };
 
+  // Loading
+  if (loading) {
+    return (
+      <Container className="text-center my-5">
+        <Spinner animation="border" />
+
+        <p className="mt-3">
+          Loading products...
+        </p>
+      </Container>
+    );
+  }
+
+  // Error
+  if (error) {
+    return (
+      <Container className="my-5">
+        <Alert variant="danger">
+          {error}
+        </Alert>
+      </Container>
+    );
+  }
 
   return (
+    <Container className="products-container my-5">
+      <h2 className="text-center mb-4">
+        Our <span>Products</span>
+      </h2>
 
-    <div className="products-page">
-
-      <Container>
-
-
-        {/* Heading */}
-
-        <div className="products-heading">
-
-          <h1>Our Watches</h1>
-
-          <p>
-            Explore our latest collection of
-            stylish watches.
-          </p>
-
-        </div>
-
-
-        {/* Message */}
-
-        {message && (
-
-          <Alert
-            variant="success"
-            className="product-message"
-            onClose={() => setMessage("")}
-            dismissible
-          >
-            {message}
-          </Alert>
-
-        )}
-
-
-        {/* Product Cards */}
-
+      {products.length === 0 ? (
+        <Alert variant="info">
+          No products found in the database.
+        </Alert>
+      ) : (
         <Row>
-
           {products.map((product) => (
-
             <Col
-              md={6}
-              lg={4}
+              key={product._id}
+              xs={12}
+              sm={6}
+              md={4}
               className="mb-4"
-              key={product.id}
             >
-
-              <Card className="product-card">
-
-
-                {/* Product Image */}
-
+              <Card className="product-card h-100">
                 <Card.Img
                   variant="top"
-                  src={product.image}
+                  src={
+                    watchImages[product.image] ||
+                    product.image
+                  }
                   alt={product.name}
                   className="product-image"
                 />
 
-
-                <Card.Body>
-
-
-                  {/* Category */}
-
-                  <span className="product-category">
-                    {product.category}
-                  </span>
-
-
-                  {/* Product Name */}
-
+                <Card.Body className="d-flex flex-column">
                   <Card.Title>
                     {product.name}
                   </Card.Title>
-
-
-                  {/* Description */}
 
                   <Card.Text>
                     {product.description}
                   </Card.Text>
 
-
-                  {/* Price */}
-
                   <h5 className="product-price">
                     ₹{product.price}
                   </h5>
 
+                  <div className="category-buttons d-grid gap-2 mt-auto">
+                    {/* Wishlist */}
+                    <Button
+                      variant="outline-danger"
+                      onClick={() => addToWishlist(product)}
+                    >
+                      <FontAwesomeIcon icon={faHeart} />{" "}
+                      Wishlist
+                    </Button>
 
-                  {/* Wishlist */}
+                    {/* Add to Cart */}
+                    <Button
+                      variant="dark"
+                      onClick={() => addToCart(product)}
+                    >
+                      <FontAwesomeIcon
+                        icon={faCartShopping}
+                      />{" "}
+                      Add to Cart
+                    </Button>
 
-                  <Button
-                    variant="outline-danger"
-                    className="wishlist-button"
-                    onClick={() =>
-                      addToWishlist(product)
-                    }
-                  >
-
-                    <FontAwesomeIcon
-                      icon={faHeart}
-                    />
-
-                  </Button>
-
-
-                  {/* Add to Cart */}
-
-                  <Button
-                    variant="dark"
-                    className="cart-button"
-                    onClick={() =>
-                      addToCart(product)
-                    }
-                  >
-
-                    <FontAwesomeIcon
-                      icon={faCartShopping}
-                    />
-
-                    {" "}Add to Cart
-
-                  </Button>
-
-
-                  {/* Buy Now */}
-
-                  <Button
-                    variant="warning"
-                    className="buy-button"
-                  >
-
-                    <FontAwesomeIcon
-                      icon={faBolt}
-                    />
-
-                    {" "}Buy Now
-
-                  </Button>
-
-
+                    {/* Buy Now */}
+                    <Button
+                      variant="warning"
+                      onClick={() => buyNow(product)}
+                    >
+                      <FontAwesomeIcon icon={faBolt} />{" "}
+                      Buy Now
+                    </Button>
+                  </div>
                 </Card.Body>
-
               </Card>
-
             </Col>
-
           ))}
-
         </Row>
-
-
-      </Container>
-
-    </div>
-
+      )}
+    </Container>
   );
-
 }
-
 
 export default Products;

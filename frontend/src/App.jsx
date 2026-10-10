@@ -1,4 +1,12 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 
 import Navbar from "./Components/Navbar";
 import Home from "./Pages/Home";
@@ -8,18 +16,37 @@ import Wishlist from "./Pages/Wishlist";
 import Cart from "./Pages/Cart";
 import Login from "./Pages/Login";
 import Register from "./Pages/Register";
-
+import BuyNow from "./Pages/BuyNow";
 import Footer from "./Components/Footer";
 
 import "./App.css";
 
 function AppContent() {
-
   const location = useLocation();
 
-  const isLoggedIn =
-    localStorage.getItem("isLoggedIn") === "true";
+  // Login status
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    localStorage.getItem("isLoggedIn") === "true"
+  );
 
+  // Update login status when login/logout happens
+  useEffect(() => {
+    const checkLogin = () => {
+      setIsLoggedIn(
+        localStorage.getItem("isLoggedIn") === "true"
+      );
+    };
+
+    window.addEventListener("storage", checkLogin);
+    window.addEventListener("loginStatusChanged", checkLogin);
+
+    return () => {
+      window.removeEventListener("storage", checkLogin);
+      window.removeEventListener("loginStatusChanged", checkLogin);
+    };
+  }, []);
+
+  // Login and Register pages should not show Navbar/Footer
   const hideLayout =
     location.pathname === "/" ||
     location.pathname === "/login" ||
@@ -31,91 +58,118 @@ function AppContent() {
       {!hideLayout && isLoggedIn && <Navbar />}
 
       <Routes>
-
-        {/* First page = Login */}
-        <Route
-          path="/"
-          element={<Login />}
-        />
-
         {/* Login */}
         <Route
+          path="/"
+          element={
+            isLoggedIn ? (
+              <Navigate to="/home" replace />
+            ) : (
+              <Login />
+            )
+          }
+        />
+
+        <Route
           path="/login"
-          element={<Login />}
+          element={
+            isLoggedIn ? (
+              <Navigate to="/home" replace />
+            ) : (
+              <Login />
+            )
+          }
         />
 
         {/* Register */}
         <Route
           path="/register"
-          element={<Register />}
+          element={
+            isLoggedIn ? (
+              <Navigate to="/home" replace />
+            ) : (
+              <Register />
+            )
+          }
         />
 
-        {/* Home */}
+        {/* Protected Pages */}
         <Route
           path="/home"
           element={
             isLoggedIn ? (
               <Home />
             ) : (
-              <Navigate to="/login" />
+              <Navigate to="/login" replace />
             )
           }
         />
 
-        {/* Products */}
         <Route
           path="/products"
           element={
             isLoggedIn ? (
               <Products />
             ) : (
-              <Navigate to="/login" />
+              <Navigate to="/login" replace />
             )
           }
         />
 
-        {/* Categories */}
         <Route
           path="/categories"
           element={
             isLoggedIn ? (
               <Categories />
             ) : (
-              <Navigate to="/login" />
+              <Navigate to="/login" replace />
             )
           }
         />
 
-        {/* Wishlist */}
         <Route
           path="/wishlist"
           element={
             isLoggedIn ? (
               <Wishlist />
             ) : (
-              <Navigate to="/login" />
+              <Navigate to="/login" replace />
             )
           }
         />
 
-        {/* Cart */}
         <Route
           path="/cart"
           element={
             isLoggedIn ? (
               <Cart />
             ) : (
-              <Navigate to="/login" />
+              <Navigate to="/login" replace />
             )
           }
         />
 
-        {/* Unknown page */}
         <Route
-          path="*"
-          element={<Navigate to="/" />}
+          path="/buynow"
+          element={
+            isLoggedIn ? (
+              <BuyNow />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
 
+        {/* Unknown URL */}
+        <Route
+          path="*"
+          element={
+            <Navigate
+              to={isLoggedIn ? "/home" : "/login"}
+              replace
+            />
+          }
+        />
       </Routes>
 
       {/* Footer */}
@@ -125,7 +179,6 @@ function AppContent() {
 }
 
 function App() {
-
   return (
     <BrowserRouter>
       <AppContent />

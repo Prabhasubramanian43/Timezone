@@ -57,16 +57,13 @@ function Register() {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage(data.message);
-        setError("");
+        alert("Registration successful!");
 
         form.reset();
 
         navigate("/login");
-      } 
-      else {
-        setError(data.message);
-        setMessage("");
+      } else {
+        alert(data.message);
       }
     } catch (error) {
       console.log(error);

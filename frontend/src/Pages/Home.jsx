@@ -16,276 +16,262 @@ import rolex from "../assets/rol.jpeg";
 import casio from "../assets/casio.jpeg";
 import fossil from "../assets/foss.jpeg";
 
-
 function Home() {
-
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("success");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (event) => {
+  // Submit Customer Feedback
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    setMessage("Thank you for your feedback!");
+    const form = event.target;
 
-    event.target.reset();
+    const formData = {
+      name: form.elements.name.value.trim(),
+      email: form.elements.email.value.trim(),
+      feedback: form.elements.feedback.value.trim(),
+    };
+
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/feedback",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Failed to submit feedback!");
+        return;
+      }
+
+      // Success alert
+      alert("Thank you for your feedback!");
+
+      form.reset();
+
+    } catch (error) {
+      console.error("Feedback error:", error);
+
+      alert("Unable to connect to server. Please try again.");
+    }
   };
 
-  return (
-    <div>
+  return (<div>
+    {/* Company Name */} <section className="company-section"> <h1>TIMEZONE</h1>
 
-      {/* Company Name */}
-      <section className="company-section">
+      <p>Premium Watches for Every Moment</p>
+    </section>
 
-        <h1> TIMEZONE</h1>
+    {/* Hero Slider */}
+    <section className="hero-section">
+      <Carousel>
+        {/* Slide 1 */}
+        <Carousel.Item>
+          <img
+            src={watch1}
+            alt="Luxury Watch"
+          />
 
-        <p>Premium Watches for Every Moment</p>
+          <Carousel.Caption>
+            <h2>Luxury Watches</h2>
 
-      </section>
+            <p>
+              Discover premium watches designed with
+              style and elegance.
+            </p>
 
+            <Link to="/products">
+              <Button variant="light">
+                Shop Now
+              </Button>
+            </Link>
+          </Carousel.Caption>
+        </Carousel.Item>
 
-      {/* Hero Slider */}
-      <section className="hero-section">
+        {/* Slide 2 */}
+        <Carousel.Item>
+          <img
+            src={watch2}
+            alt="Classic Watch"
+          />
 
-        <Carousel>
+          <Carousel.Caption>
+            <h2>Classic Collection</h2>
 
-          {/* Slide 1 */}
-          <Carousel.Item>
+            <p>
+              Timeless designs for your everyday style.
+            </p>
 
-            <img
-              src={watch1}
-              alt="Luxury Watch"
-            />
+            <Link to="/products">
+              <Button variant="light">
+                Explore Collection
+              </Button>
+            </Link>
+          </Carousel.Caption>
+        </Carousel.Item>
 
-            <Carousel.Caption>
+        {/* Slide 3 */}
+        <Carousel.Item>
+          <img
+            src={watch3}
+            alt="Premium Watch"
+          />
 
-              <h2>Luxury Watches</h2>
+          <Carousel.Caption>
+            <h2>Premium Collection</h2>
 
-              <p>
-                Discover premium watches designed with
-                style and elegance.
-              </p>
+            <p>
+              Experience quality, comfort and modern design.
+            </p>
 
-              <Link to="/products">
-                <Button variant="light">Shop Now</Button>
-              </Link>
+            <Link to="/products">
+              <Button variant="light">
+                View Watches
+              </Button>
+            </Link>
+          </Carousel.Caption>
+        </Carousel.Item>
+      </Carousel>
+    </section>
 
-            </Carousel.Caption>
+    {/* Customer Feedback */}
+    <section className="feedback-section">
+      <h2>Customer Feedback</h2>
 
-          </Carousel.Item>
+      <p>We would love to hear from you!</p>
 
-
-          {/* Slide 2 */}
-          <Carousel.Item>
-
-            <img
-              src={watch2}
-              alt="Classic Watch"
-            />
-
-            <Carousel.Caption>
-
-              <h2>Classic Collection</h2>
-
-              <p>
-                Timeless designs for your everyday style.
-              </p>
-
-              <Link to="/products">
-                <Button variant="light">Explore Collection</Button>
-              </Link>
-
-            </Carousel.Caption>
-
-          </Carousel.Item>
-
-
-          {/* Slide 3 */}
-          <Carousel.Item>
-
-            <img
-              src={watch3}
-              alt="Premium Watch"
-            />
-
-            <Carousel.Caption>
-
-              <h2>Premium Collection</h2>
-
-              <p>
-                Experience quality, comfort and modern design.
-              </p>
-
-              <Link to="/products">
-                <Button variant="light">View Watches</Button>
-              </Link>
-
-            </Carousel.Caption>
-
-          </Carousel.Item>
-
-        </Carousel>
-
-      </section>
-
+      {/* Success or Error Message */}
+      {message && (
+        <Alert
+          variant={messageType}
+          dismissible
+          onClose={() => setMessage("")}
+        >
+          {message}
+        </Alert>
+      )}
 
       {/* Feedback Form */}
-      <section className="feedback-section">
+      <Form
+        className="feedback-form"
+        onSubmit={handleSubmit}
+      >
+        {/* Name */}
+        <Form.Group className="mb-3">
+          <Form.Label>Name</Form.Label>
 
-        <h2>Customer Feedback</h2>
+          <Form.Control
+            type="text"
+            name="name"
+            placeholder="Enter your name"
+            required
+          />
+        </Form.Group>
 
-        <p>
-          We would love to hear from you!
-        </p>
+        {/* Email */}
+        <Form.Group className="mb-3">
+          <Form.Label>Email</Form.Label>
 
+          <Form.Control
+            type="email"
+            name="email"
+            placeholder="Enter your email"
+            required
+          />
+        </Form.Group>
 
-        {message && (
-          <Alert variant="success">
-            {message}
-          </Alert>
-        )}
+        {/* Feedback */}
+        <Form.Group className="mb-3">
+          <Form.Label>Your Feedback</Form.Label>
 
+          <Form.Control
+            as="textarea"
+            name="feedback"
+            rows={4}
+            placeholder="Write your feedback..."
+            required
+          />
+        </Form.Group>
 
-        <Form
-          className="feedback-form"
-          onSubmit={handleSubmit}
-        >
+        {/* Submit Button */}
+        <Button variant="dark" type="submit">
+          Submit Feedback
+        </Button>
+      </Form>
+    </section>
 
-          {/* Name */}
-          <Form.Group className="mb-3">
+    {/* Our Partners */}
+    <section className="partners-section">
+      <h2>Our Partners</h2>
 
-            <Form.Label>Name</Form.Label>
+      <p>
+        We work with trusted watch brands around the world.
+      </p>
 
-            <Form.Control
-              type="text"
-              placeholder="Enter your name"
-              required
-            />
+      <Carousel>
+        {/* Rolex */}
+        <Carousel.Item>
+          <img
+            src={rolex}
+            alt="Rolex"
+          />
 
-          </Form.Group>
+          <Carousel.Caption>
+            <h3>Rolex</h3>
 
+            <p>
+              Rolex is known for luxury watches,
+              precision and timeless design.
+            </p>
+          </Carousel.Caption>
+        </Carousel.Item>
 
-          {/* Email */}
-          <Form.Group className="mb-3">
+        {/* Casio */}
+        <Carousel.Item>
+          <img
+            src={casio}
+            alt="Casio"
+          />
 
-            <Form.Label>Email</Form.Label>
+          <Carousel.Caption>
+            <h3>Casio</h3>
 
-            <Form.Control
-              type="email"
-              placeholder="Enter your email"
-              required
-            />
+            <p>
+              Casio offers reliable and stylish watches
+              for everyday use.
+            </p>
+          </Carousel.Caption>
+        </Carousel.Item>
 
-          </Form.Group>
+        {/* Fossil */}
+        <Carousel.Item>
+          <img
+            src={fossil}
+            alt="Fossil"
+          />
 
+          <Carousel.Caption>
+            <h3>Fossil</h3>
 
-          {/* Feedback */}
-          <Form.Group className="mb-3">
-
-            <Form.Label>Your Feedback</Form.Label>
-
-            <Form.Control
-              as="textarea"
-              rows={4}
-              placeholder="Write your feedback..."
-              required
-            />
-
-          </Form.Group>
-
-
-          <Button
-            variant="dark"
-            type="submit"
-          >
-            Submit Feedback
-          </Button>
-
-        </Form>
-
-      </section>
-
-
-      {/* Partners */}
-      <section className="partners-section">
-
-        <h2>Our Partners</h2>
-
-        <p>
-          We work with trusted watch brands around the world.
-        </p>
-
-
-        <Carousel>
-
-          {/* Rolex */}
-          <Carousel.Item>
-
-            <img
-              src={rolex}
-              alt="Rolex"
-            />
-
-            <Carousel.Caption>
-
-              <h3>Rolex</h3>
-
-              <p>
-                Rolex is known for luxury watches,
-                precision and timeless design.
-              </p>
-
-            </Carousel.Caption>
-
-          </Carousel.Item>
-
-
-          {/* Casio */}
-          <Carousel.Item>
-
-            <img
-              src={casio}
-              alt="Casio"
-            />
-
-            <Carousel.Caption>
-
-              <h3>Casio</h3>
-
-              <p>
-                Casio offers reliable and stylish watches
-                for everyday use.
-              </p>
-
-            </Carousel.Caption>
-
-          </Carousel.Item>
+            <p>
+              Fossil combines modern fashion with
+              classic watch designs.
+            </p>
+          </Carousel.Caption>
+        </Carousel.Item>
+      </Carousel>
+    </section>
+  </div>
 
 
-          {/* Fossil */}
-          <Carousel.Item>
-
-            <img
-              src={fossil}
-              alt="Fossil"
-            />
-
-            <Carousel.Caption>
-
-              <h3>Fossil</h3>
-
-              <p>
-                Fossil combines modern fashion with
-                classic watch designs.
-              </p>
-
-            </Carousel.Caption>
-
-          </Carousel.Item>
-
-        </Carousel>
-
-      </section>
-
-    </div>
   );
 }
 

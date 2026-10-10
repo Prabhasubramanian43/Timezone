@@ -11,15 +11,20 @@ import watch1 from "../assets/bg.jpeg";
 function Login() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    const form = event.target;
+    setMessage("");
+    setError("");
+    setLoading(true);
 
-    const email = form.email.value;
+    const form = event.currentTarget;
+
+    const email = form.email.value.trim();
     const password = form.password.value;
 
     try {
@@ -39,24 +44,53 @@ function Login() {
 
       const data = await response.json();
 
-      if (response.ok) {
-        setMessage(data.message);
-        setError("");
-
-        localStorage.setItem("isLoggedIn", "true");
-
-        form.reset();
-
-        navigate("/home");
-      } else {
-        setError(data.message);
-        setMessage("");
+      if (!response.ok) {
+        setError(data.message || "Invalid email or password.");
+        return;
       }
-    } catch (error) {
-      console.log(error);
 
-      setError("Unable to connect to server.");
+      // Check whether backend returned user details
+      if (!data.user || !data.user._id) {
+        setError(
+          "User ID is missing. Please check the login API in backend/routes/auth.js."
+        );
+
+        console.log("Login response:", data);
+        return;
+      }
+
+      // Save login status
+      localStorage.setItem("isLoggedIn", "true");
+
+      // Save logged-in user details
+      localStorage.setItem(
+        "loggedInUser",
+        JSON.stringify(data.user)
+      );
+
+      console.log("Logged-in user:", data.user);
+
+      // Notify App.jsx about the login status change
+      window.dispatchEvent(new Event("loginStatusChanged"));
+
+      // Reset form
+      form.reset();
+
+      // Show success message
+      alert("Login successful!");
+
+      // Navigate to Home page
+      navigate("/home", { replace: true });
+    } catch (err) {
+      console.error("Login error:", err);
+
+      setError(
+        "Unable to connect to server. Please check whether your backend is running."
+      );
+
       setMessage("");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -69,25 +103,26 @@ function Login() {
     >
       <Container>
         <div className="login-box">
-
           <h1>TIMEZONE</h1>
 
           <p>Welcome back!</p>
 
+          {/* Success Message */}
           {message && (
             <Alert variant="success">
               {message}
             </Alert>
           )}
 
+          {/* Error Message */}
           {error && (
             <Alert variant="danger">
               {error}
             </Alert>
           )}
 
+          {/* Login Form */}
           <Form onSubmit={handleSubmit}>
-
             <Form.Group className="mb-3">
               <Form.Label>Email</Form.Label>
 
@@ -114,10 +149,10 @@ function Login() {
               variant="dark"
               type="submit"
               className="login-button"
+              disabled={loading}
             >
-              Login
+              {loading ? "Logging in..." : "Login"}
             </Button>
-
           </Form>
 
           <p className="register-text">
@@ -126,7 +161,6 @@ function Login() {
               Register
             </Link>
           </p>
-
         </div>
       </Container>
     </div>
