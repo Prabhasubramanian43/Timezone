@@ -1,20 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Button,
-} from "react-bootstrap";
-
+import { Container, Row, Col, Card, Button, } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faHeart,
-  faTrash,
-  faCartShopping,
-  faBolt,
-} from "@fortawesome/free-solid-svg-icons";
+import { faHeart, faTrash, faCartShopping, faBolt,} from "@fortawesome/free-solid-svg-icons";
 
 function Wishlist() {
   const navigate = useNavigate();

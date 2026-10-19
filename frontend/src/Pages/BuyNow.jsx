@@ -1,16 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Button,
-  Form,
-  Modal,
-  Spinner,
-} from "react-bootstrap";
+import { Container, Row, Col, Card, Button, Form, Modal, Spinner, } from "react-bootstrap";
 
 function BuyNow() {
   const navigate = useNavigate();

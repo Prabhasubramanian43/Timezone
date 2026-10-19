@@ -1,23 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Button,
-  Alert,
-  Spinner,
-} from "react-bootstrap";
-
+import { Container, Row, Col, Card, Button, Alert, Spinner, } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-
-import {
-  faHeart,
-  faCartShopping,
-  faBolt,
-} from "@fortawesome/free-solid-svg-icons";
+import { faHeart, faCartShopping, faBolt, } from "@fortawesome/free-solid-svg-icons";
 
 import "../app.css";
 

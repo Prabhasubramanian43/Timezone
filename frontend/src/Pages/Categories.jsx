@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-
-
 import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
@@ -12,11 +10,7 @@ import Button from "react-bootstrap/Button";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import {
-  faHeart,
-  faCartShopping,
-  faBolt,
-} from "@fortawesome/free-solid-svg-icons";
+import { faHeart, faCartShopping, faBolt, } from "@fortawesome/free-solid-svg-icons";
 
 // Men Images
 import men1 from "../assets/p11.jpeg";

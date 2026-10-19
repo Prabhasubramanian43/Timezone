@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-
 import Container from "react-bootstrap/Container";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
@@ -60,10 +59,10 @@ function Login() {
       }
 
       // Save login status
-      localStorage.setItem("isLoggedIn", "true");
+      sessionStorage.setItem("isLoggedIn", "true");
 
       // Save logged-in user details
-      localStorage.setItem(
+      sessionStorage.setItem(
         "loggedInUser",
         JSON.stringify(data.user)
       );

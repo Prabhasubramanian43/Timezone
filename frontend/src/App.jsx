@@ -1,12 +1,6 @@
 import { useState, useEffect } from "react";
 
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-  useLocation,
-} from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, } from "react-router-dom";
 
 import Navbar from "./Components/Navbar";
 import Home from "./Pages/Home";
@@ -26,14 +20,14 @@ function AppContent() {
 
   // Login status
   const [isLoggedIn, setIsLoggedIn] = useState(
-    localStorage.getItem("isLoggedIn") === "true"
+    sessionStorage.getItem("isLoggedIn") === "true"
   );
 
   // Update login status when login/logout happens
   useEffect(() => {
     const checkLogin = () => {
       setIsLoggedIn(
-        localStorage.getItem("isLoggedIn") === "true"
+        sessionStorage.getItem("isLoggedIn") === "true"
       );
     };
 

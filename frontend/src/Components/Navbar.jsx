@@ -24,6 +24,9 @@ function NavigationBar() {
 
   // Logout
   const handleLogout = () => {
+  sessionStorage.removeItem("isLoggedIn");
+  sessionStorage.removeItem("loggedInUser");
+
   localStorage.removeItem("isLoggedIn");
   localStorage.removeItem("loggedInUser");
 

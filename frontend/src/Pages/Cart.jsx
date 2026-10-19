@@ -1,20 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Button,
-} from "react-bootstrap";
+import { Container, Row, Col, Card, Button, } from "react-bootstrap";
 
-import {
-  FaTrash,
-  FaPlus,
-  FaMinus,
-  FaShoppingCart,
-  FaBolt,
-} from "react-icons/fa";
+import { FaTrash, FaPlus, FaMinus, FaShoppingCart, FaBolt, } from "react-icons/fa";
 
 // Import existing watch images
 import watch1 from "../assets/p11.jpeg";
