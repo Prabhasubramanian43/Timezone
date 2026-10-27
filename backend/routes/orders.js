@@ -4,7 +4,7 @@ const Order = require("../models/Order");
 
 const router = express.Router();
 
-// Create new order
+// POST - Create a new order
 router.post("/", async (req, res) => {
   try {
     const {
@@ -21,78 +21,104 @@ router.post("/", async (req, res) => {
     // Validate required details
     if (
       !userId ||
-      !customerName ||
-      !email ||
-      !phone ||
-      !address ||
+      !customerName?.trim() ||
+      !email?.trim() ||
+      !phone?.trim() ||
+      !address?.trim() ||
       !Array.isArray(products) ||
       products.length === 0
     ) {
       return res.status(400).json({
+        success: false,
         message: "Please provide all required order details.",
       });
     }
 
+    // Validate user ID
     if (!mongoose.isValidObjectId(userId)) {
       return res.status(400).json({
+        success: false,
         message: "Invalid user ID.",
       });
     }
 
-    // Validate products
+    // Prepare products for saving
+    const orderProducts = [];
+
     for (const product of products) {
+      const price = Number(product.price);
+      const quantity = Number(product.quantity);
+
       if (
         !product.name ||
-        !Number.isFinite(Number(product.price)) ||
-        Number(product.price) < 0 ||
-        !Number.isInteger(Number(product.quantity)) ||
-        Number(product.quantity) < 1
+        !Number.isFinite(price) ||
+        price < 0 ||
+        !Number.isInteger(quantity) ||
+        quantity < 1
       ) {
         return res.status(400).json({
+          success: false,
           message: "Invalid product details.",
         });
       }
 
+      const orderProduct = {
+        name: String(product.name),
+        price,
+        image: product.image || "",
+        quantity,
+      };
+
+      /*
+       * IMPORTANT:
+       * MongoDB product IDs must be valid ObjectIds.
+       * Static frontend products may have IDs such as "1" or "watch1".
+       * Save productId only when it is a valid MongoDB ObjectId.
+       */
       if (
         product.productId &&
-        !mongoose.isValidObjectId(product.productId)
+        mongoose.isValidObjectId(product.productId)
       ) {
-        return res.status(400).json({
-          message: "Invalid product ID.",
-        });
+        orderProduct.productId = new mongoose.Types.ObjectId(
+          product.productId
+        );
       }
+
+      orderProducts.push(orderProduct);
     }
 
-    // Calculate total from submitted product prices and quantities
-    const calculatedTotal = products.reduce(
+    // Calculate total on the server
+    const calculatedTotal = orderProducts.reduce(
       (sum, product) =>
-        sum + Number(product.price) * Number(product.quantity),
+        sum + product.price * product.quantity,
       0
     );
 
+    // Validate submitted total
     if (
       !Number.isFinite(Number(totalAmount)) ||
-      Number(totalAmount) !== calculatedTotal
+      Math.abs(Number(totalAmount) - calculatedTotal) > 0.01
     ) {
       return res.status(400).json({
+        success: false,
         message: "Order total does not match product details.",
       });
     }
 
-    // Save order in MongoDB
+    // Create order
     const order = await Order.create({
       userId,
-      customerName,
-      email,
-      phone,
-      address,
-      products,
+      customerName: customerName.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      address: address.trim(),
+      products: orderProducts,
       totalAmount: calculatedTotal,
       paymentMethod: paymentMethod || "Cash on Delivery",
       orderStatus: "Order Placed",
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Order placed successfully!",
       order,
@@ -100,19 +126,21 @@ router.post("/", async (req, res) => {
   } catch (error) {
     console.error("Create order error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
+      success: false,
       message: "Unable to place order.",
     });
   }
 });
 
-// Get orders for a user
+// GET - Get orders for a user
 router.get("/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
 
     if (!mongoose.isValidObjectId(userId)) {
       return res.status(400).json({
+        success: false,
         message: "Invalid user ID.",
       });
     }
@@ -121,11 +149,12 @@ router.get("/:userId", async (req, res) => {
       createdAt: -1,
     });
 
-    res.json(orders);
+    return res.status(200).json(orders);
   } catch (error) {
     console.error("Get orders error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
+      success: false,
       message: "Unable to fetch orders.",
     });
   }

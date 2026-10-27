@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
-
-import { BrowserRouter, Routes, Route, Navigate, useLocation, } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 
 import Navbar from "./Components/Navbar";
 import Home from "./Pages/Home";
@@ -18,16 +23,14 @@ import "./App.css";
 function AppContent() {
   const location = useLocation();
 
-  // Login status
   const [isLoggedIn, setIsLoggedIn] = useState(
-    sessionStorage.getItem("isLoggedIn") === "true"
+    () => localStorage.getItem("isLoggedIn") === "true"
   );
 
-  // Update login status when login/logout happens
   useEffect(() => {
     const checkLogin = () => {
       setIsLoggedIn(
-        sessionStorage.getItem("isLoggedIn") === "true"
+        localStorage.getItem("isLoggedIn") === "true"
       );
     };
 
@@ -40,7 +43,6 @@ function AppContent() {
     };
   }, []);
 
-  // Login and Register pages should not show Navbar/Footer
   const hideLayout =
     location.pathname === "/" ||
     location.pathname === "/login" ||
@@ -48,11 +50,9 @@ function AppContent() {
 
   return (
     <>
-      {/* Navbar */}
       {!hideLayout && isLoggedIn && <Navbar />}
 
       <Routes>
-        {/* Login */}
         <Route
           path="/"
           element={
@@ -75,7 +75,6 @@ function AppContent() {
           }
         />
 
-        {/* Register */}
         <Route
           path="/register"
           element={
@@ -87,7 +86,6 @@ function AppContent() {
           }
         />
 
-        {/* Protected Pages */}
         <Route
           path="/home"
           element={
@@ -154,7 +152,6 @@ function AppContent() {
           }
         />
 
-        {/* Unknown URL */}
         <Route
           path="*"
           element={
@@ -166,7 +163,6 @@ function AppContent() {
         />
       </Routes>
 
-      {/* Footer */}
       {!hideLayout && isLoggedIn && <Footer />}
     </>
   );

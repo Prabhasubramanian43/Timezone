@@ -1,8 +1,21 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Container, Row, Col, Card, Button, } from "react-bootstrap";
 
-import { FaTrash, FaPlus, FaMinus, FaShoppingCart, FaBolt, } from "react-icons/fa";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Button,
+} from "react-bootstrap";
+
+import {
+  FaTrash,
+  FaPlus,
+  FaMinus,
+  FaShoppingCart,
+  FaBolt,
+} from "react-icons/fa";
 
 // Import existing watch images
 import watch1 from "../assets/p11.jpeg";
@@ -26,16 +39,27 @@ function Cart() {
   const navigate = useNavigate();
 
   const [cartItems, setCartItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   // Get logged-in user
   const getLoggedInUser = () => {
     try {
-      return JSON.parse(localStorage.getItem("loggedInUser"));
+      return JSON.parse(
+        localStorage.getItem("loggedInUser") || "null"
+      );
     } catch {
       return null;
     }
+  };
+
+  // Check login status
+  const isUserLoggedIn = () => {
+    const user = getLoggedInUser();
+
+    return (
+      localStorage.getItem("isLoggedIn") === "true" &&
+      user &&
+      user._id
+    );
   };
 
   // Get correct image path
@@ -44,157 +68,142 @@ function Cart() {
       return "";
     }
 
-    // Database-la filename mattum irundhaal
-    const filename = image.split("/").pop();
+    const filename = String(image).split("/").pop();
 
     return watchImages[filename] || image;
   };
 
-  // Fetch cart from MongoDB
-  const fetchCart = async () => {
-    setLoading(true);
-    setError("");
-
+  // Load cart from localStorage
+  const fetchCart = () => {
     try {
-      const user = getLoggedInUser();
+      const savedCart = JSON.parse(
+        localStorage.getItem("watchCart") || "[]"
+      );
 
-      if (!user || !user._id) {
+      if (!Array.isArray(savedCart)) {
         setCartItems([]);
-        setError("Please login to view your cart.");
-        setLoading(false);
         return;
       }
 
-      const response = await fetch(
-        `http://localhost:5000/api/cart/${user._id}`
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to load cart.");
-      }
-
-      const products = (data.products || []).map((product) => ({
+      const normalizedCart = savedCart.map((product) => ({
         ...product,
-        id: product.productId,
+        id: String(product.id || product._id || product.productId),
         image: getProductImage(product.image),
-        quantity: Number(product.quantity) || 1,
+        quantity: Math.max(
+          1,
+          Number(product.quantity) || 1
+        ),
+        price: Number(product.price) || 0,
       }));
 
-      setCartItems(products);
-    } catch (err) {
-      console.error("Fetch cart error:", err);
-      setError(
-        "Unable to load cart. Please check your backend connection."
-      );
-    } finally {
-      setLoading(false);
+      setCartItems(normalizedCart);
+    } catch (error) {
+      console.error("Load cart error:", error);
+      setCartItems([]);
     }
   };
 
+  // Load cart and listen for changes
   useEffect(() => {
     fetchCart();
+
+    const handleCartUpdated = () => {
+      fetchCart();
+    };
+
+    window.addEventListener("cartUpdated", handleCartUpdated);
+    window.addEventListener("storage", handleCartUpdated);
+
+    return () => {
+      window.removeEventListener(
+        "cartUpdated",
+        handleCartUpdated
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleCartUpdated
+      );
+    };
   }, []);
 
+  // Save cart to localStorage
+  const saveCart = (updatedCart) => {
+    localStorage.setItem(
+      "watchCart",
+      JSON.stringify(updatedCart)
+    );
+
+    setCartItems(updatedCart);
+
+    window.dispatchEvent(new Event("cartUpdated"));
+  };
+
   // Increase or decrease quantity
-  const updateQuantity = async (productId, quantity) => {
+  const updateQuantity = (productId, quantity) => {
+    if (!isUserLoggedIn()) {
+      alert("Please login first!");
+      navigate("/login");
+      return;
+    }
+
     if (quantity < 1) {
       return;
     }
 
-    const user = getLoggedInUser();
+    const updatedCart = cartItems.map((item) =>
+      String(item.id) === String(productId)
+        ? {
+            ...item,
+            quantity: Number(quantity),
+          }
+        : item
+    );
 
-    if (!user || !user._id) {
-      alert("Please login first!");
-      navigate("/");
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `http://localhost:5000/api/cart/${user._id}/${productId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ quantity }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to update quantity.");
-      }
-
-      // Update frontend immediately
-      setCartItems((previousItems) =>
-        previousItems.map((item) =>
-          String(item.id) === String(productId)
-            ? { ...item, quantity }
-            : item
-        )
-      );
-    } catch (err) {
-      console.error("Update quantity error:", err);
-      alert(err.message || "Unable to update quantity.");
-    }
+    saveCart(updatedCart);
   };
 
   // Remove product from cart
-  const removeFromCart = async (productId) => {
-    const user = getLoggedInUser();
-
-    if (!user || !user._id) {
+  const removeFromCart = (productId) => {
+    if (!isUserLoggedIn()) {
       alert("Please login first!");
-      navigate("/");
+      navigate("/login");
       return;
     }
 
-    try {
-      const response = await fetch(
-        `http://localhost:5000/api/cart/${user._id}/${productId}`,
-        {
-          method: "DELETE",
-        }
-      );
+    const updatedCart = cartItems.filter(
+      (item) => String(item.id) !== String(productId)
+    );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to remove product.");
-      }
-
-      setCartItems((previousItems) =>
-        previousItems.filter(
-          (item) => String(item.id) !== String(productId)
-        )
-      );
-    } catch (err) {
-      console.error("Remove cart error:", err);
-      alert(err.message || "Unable to remove product.");
-    }
+    saveCart(updatedCart);
   };
 
-  // Calculate total
+  // Calculate subtotal
   const subtotal = cartItems.reduce(
     (total, item) =>
-      total + Number(item.price) * Number(item.quantity),
+      total +
+      Number(item.price) * Number(item.quantity),
     0
   );
 
+  // Free shipping
   const shipping = cartItems.length > 0 ? 0 : 0;
+
   const total = subtotal + shipping;
 
   // Buy Now
   const handleBuyNow = (product) => {
+    if (!isUserLoggedIn()) {
+      alert("Please login first!");
+      navigate("/login");
+      return;
+    }
+
     const buyNowProduct = {
       ...product,
-      id: product.id,
+      id: String(product.id),
       image: product.image,
-      quantity: product.quantity,
+      quantity: Number(product.quantity) || 1,
     };
 
     localStorage.setItem(
@@ -207,6 +216,12 @@ function Cart() {
 
   // Checkout
   const handleCheckout = () => {
+    if (!isUserLoggedIn()) {
+      alert("Please login first!");
+      navigate("/login");
+      return;
+    }
+
     if (cartItems.length === 0) {
       alert("Your cart is empty!");
       return;
@@ -227,32 +242,12 @@ function Cart() {
         My Shopping Cart
       </h2>
 
-      {loading ? (
+      {cartItems.length === 0 ? (
         <div className="text-center py-5">
-          <h5>Loading your cart...</h5>
-        </div>
-      ) : error ? (
-        <div className="text-center py-5">
-          <p className="text-danger">{error}</p>
-
-          <Button
-            variant="dark"
-            onClick={() => navigate("/")}
-          >
-            Go to Login
-          </Button>
-
-          <Button
-            variant="outline-dark"
-            className="ms-2"
-            onClick={fetchCart}
-          >
-            Try Again
-          </Button>
-        </div>
-      ) : cartItems.length === 0 ? (
-        <div className="text-center py-5">
-          <FaShoppingCart size={55} className="mb-3" />
+          <FaShoppingCart
+            size={55}
+            className="mb-3"
+          />
 
           <h4>Your cart is empty!</h4>
 
@@ -265,6 +260,14 @@ function Cart() {
             onClick={() => navigate("/products")}
           >
             Shop Now
+          </Button>
+
+          <Button
+            variant="outline-dark"
+            className="ms-2"
+            onClick={() => navigate("/categories")}
+          >
+            Browse Categories
           </Button>
         </div>
       ) : (
@@ -285,7 +288,8 @@ function Cart() {
                           src={product.image}
                           alt={product.name}
                           onError={(event) => {
-                            event.currentTarget.style.display = "none";
+                            event.currentTarget.style.display =
+                              "none";
                           }}
                           style={{
                             width: "100%",
@@ -364,7 +368,9 @@ function Cart() {
                         variant="danger"
                         size="sm"
                         className="mb-2"
-                        onClick={() => removeFromCart(product.id)}
+                        onClick={() =>
+                          removeFromCart(product.id)
+                        }
                       >
                         <FaTrash className="me-2" />
                         Remove
@@ -375,7 +381,9 @@ function Cart() {
                       <Button
                         variant="dark"
                         size="sm"
-                        onClick={() => handleBuyNow(product)}
+                        onClick={() =>
+                          handleBuyNow(product)
+                        }
                       >
                         <FaBolt className="me-2" />
                         Buy Now
@@ -391,13 +399,17 @@ function Cart() {
           <Col lg={4}>
             <Card className="shadow-sm">
               <Card.Body>
-                <h4 className="mb-4">Order Summary</h4>
+                <h4 className="mb-4">
+                  Order Summary
+                </h4>
 
                 <div className="d-flex justify-content-between mb-3">
                   <span>Items</span>
+
                   <span>
                     {cartItems.reduce(
-                      (sum, item) => sum + item.quantity,
+                      (sum, item) =>
+                        sum + Number(item.quantity),
                       0
                     )}
                   </span>
@@ -405,6 +417,7 @@ function Cart() {
 
                 <div className="d-flex justify-content-between mb-3">
                   <span>Subtotal</span>
+
                   <span>
                     ₹{subtotal.toLocaleString("en-IN")}
                   </span>
@@ -412,8 +425,11 @@ function Cart() {
 
                 <div className="d-flex justify-content-between mb-3">
                   <span>Shipping</span>
+
                   <span>
-                    {shipping === 0 ? "Free" : `₹${shipping}`}
+                    {shipping === 0
+                      ? "Free"
+                      : `₹${shipping}`}
                   </span>
                 </div>
 
@@ -421,6 +437,7 @@ function Cart() {
 
                 <div className="d-flex justify-content-between mb-4">
                   <h5>Total</h5>
+
                   <h5>
                     ₹{total.toLocaleString("en-IN")}
                   </h5>

@@ -1,37 +1,59 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Container from "react-bootstrap/Container";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
 import Alert from "react-bootstrap/Alert";
-import { Link } from "react-router-dom";
 
 import watch1 from "../assets/bgi.jpeg";
 
 function Register() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    const form = event.target;
+    if (loading) return;
 
-    const name = form.name.value;
-    const email = form.email.value;
-    const phone = form.phone.value;
-    const address = form.address.value;
+    setMessage("");
+    setError("");
+
+    const form = event.currentTarget;
+
+    const name = form.name.value.trim();
+    const email = form.email.value.trim();
+    const phone = form.phone.value.trim();
+    const address = form.address.value.trim();
     const password = form.password.value;
     const confirmPassword = form.confirmPassword.value;
+
+    // Validate customer details
+    if (!name || !email || !phone || !address || !password) {
+      setError("Please fill in all fields.");
+      return;
+    }
+
+    if (!/^[0-9]{10}$/.test(phone)) {
+      setError("Please enter a valid 10-digit phone number.");
+      return;
+    }
 
     // Check password
     if (password !== confirmPassword) {
       setError("Password and Confirm Password do not match.");
-      setMessage("");
       return;
     }
+
+    if (password.length < 6) {
+      setError("Password must contain at least 6 characters.");
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const response = await fetch(
@@ -52,21 +74,51 @@ function Register() {
         }
       );
 
-      const data = await response.json();
+      let data;
 
-      if (response.ok) {
-        alert("Registration successful!");
-
-        form.reset();
-
-        navigate("/login");
-      } else {
-        alert(data.message);
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(
+          "Invalid server response. Please check your backend API."
+        );
       }
-    } catch (error) {
-      console.log(error);
-      setError("Unable to connect to server.");
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Registration failed. Please try again."
+        );
+      }
+
+      setMessage(
+        data.message || "Registration successful! Please login."
+      );
+
+      form.reset();
+
+      // Redirect to login after successful registration
+      setTimeout(() => {
+        navigate("/login", { replace: true });
+      }, 1200);
+    } catch (err) {
+      console.error("Registration error:", err);
+
+      if (
+        err instanceof TypeError &&
+        err.message.toLowerCase().includes("fetch")
+      ) {
+        setError(
+          "Unable to connect to server. Please start your backend server."
+        );
+      } else {
+        setError(
+          err.message || "Unable to register. Please try again."
+        );
+      }
+
       setMessage("");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -79,7 +131,6 @@ function Register() {
     >
       <Container>
         <div className="register-box">
-
           <h1>TIMEZONE</h1>
 
           <p>Create your account</p>
@@ -97,7 +148,6 @@ function Register() {
           )}
 
           <Form onSubmit={handleSubmit}>
-
             {/* Name */}
             <Form.Group className="mb-3">
               <Form.Label>Name</Form.Label>
@@ -106,6 +156,7 @@ function Register() {
                 type="text"
                 name="name"
                 placeholder="Enter your name"
+                autoComplete="name"
                 required
               />
             </Form.Group>
@@ -118,6 +169,7 @@ function Register() {
                 type="email"
                 name="email"
                 placeholder="Enter your email"
+                autoComplete="email"
                 required
               />
             </Form.Group>
@@ -130,6 +182,10 @@ function Register() {
                 type="tel"
                 name="phone"
                 placeholder="Enter your phone number"
+                autoComplete="tel"
+                pattern="[0-9]{10}"
+                maxLength={10}
+                title="Enter a 10-digit phone number"
                 required
               />
             </Form.Group>
@@ -143,6 +199,7 @@ function Register() {
                 name="address"
                 rows={3}
                 placeholder="Enter your address"
+                autoComplete="street-address"
                 required
               />
             </Form.Group>
@@ -155,6 +212,8 @@ function Register() {
                 type="password"
                 name="password"
                 placeholder="Enter your password"
+                autoComplete="new-password"
+                minLength={6}
                 required
               />
             </Form.Group>
@@ -167,6 +226,8 @@ function Register() {
                 type="password"
                 name="confirmPassword"
                 placeholder="Confirm your password"
+                autoComplete="new-password"
+                minLength={6}
                 required
               />
             </Form.Group>
@@ -175,20 +236,18 @@ function Register() {
               variant="dark"
               type="submit"
               className="register-button"
+              disabled={loading}
             >
-              Register
+              {loading ? "Registering..." : "Register"}
             </Button>
-
           </Form>
 
           <p className="login-text">
             Already have an account?{" "}
-
             <Link to="/login">
               Login
             </Link>
           </p>
-
         </div>
       </Container>
     </div>

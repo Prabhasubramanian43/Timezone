@@ -1,33 +1,36 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-import { Container, Row, Col, Card, Button, Form, Modal, Spinner, } from "react-bootstrap";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Button,
+  Form,
+  Modal,
+  Spinner,
+} from "react-bootstrap";
 
 function BuyNow() {
   const navigate = useNavigate();
 
-  // Get selected product or checkout products
+  // Load selected product or cart checkout products
   const [products, setProducts] = useState(() => {
     try {
       const savedProduct = JSON.parse(
-        localStorage.getItem("buyNowProduct")
+        localStorage.getItem("buyNowProduct") || "null"
       );
 
       if (!savedProduct) return [];
 
-      if (Array.isArray(savedProduct)) {
-        return savedProduct.map((item) => ({
-          ...item,
-          quantity: Number(item.quantity) || 1,
-        }));
-      }
+      const productList = Array.isArray(savedProduct)
+        ? savedProduct
+        : [savedProduct];
 
-      return [
-        {
-          ...savedProduct,
-          quantity: Number(savedProduct.quantity) || 1,
-        },
-      ];
+      return productList.map((item) => ({
+        ...item,
+        quantity: Math.max(1, Number(item.quantity) || 1),
+      }));
     } catch {
       return [];
     }
@@ -42,18 +45,35 @@ function BuyNow() {
   });
 
   const [loading, setLoading] = useState(false);
-
-  // Order success popup
   const [showSuccess, setShowSuccess] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
 
   // Calculate total
   const totalPrice = products.reduce(
     (total, product) =>
-      total +
-      Number(product.price) * Number(product.quantity),
+      total + Number(product.price || 0) * Number(product.quantity || 1),
     0
   );
+
+  // Check login
+  const getLoggedInUser = () => {
+    try {
+      const isLoggedIn =
+        localStorage.getItem("isLoggedIn") === "true";
+
+      const user = JSON.parse(
+        localStorage.getItem("loggedInUser") || "null"
+      );
+
+      if (isLoggedIn && user?._id) {
+        return user;
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  };
 
   // Increase quantity
   const increaseQuantity = (id) => {
@@ -62,7 +82,7 @@ function BuyNow() {
         String(product.id || product._id) === String(id)
           ? {
               ...product,
-              quantity: Number(product.quantity) + 1,
+              quantity: Number(product.quantity || 1) + 1,
             }
           : product
       )
@@ -74,7 +94,7 @@ function BuyNow() {
     setProducts((previous) =>
       previous.map((product) =>
         String(product.id || product._id) === String(id) &&
-        product.quantity > 1
+        Number(product.quantity) > 1
           ? {
               ...product,
               quantity: Number(product.quantity) - 1,
@@ -94,7 +114,7 @@ function BuyNow() {
     }));
   };
 
-  // Place order and save to MongoDB
+  // Place order
   const handlePlaceOrder = async (event) => {
     event.preventDefault();
 
@@ -102,6 +122,14 @@ function BuyNow() {
 
     if (products.length === 0) {
       alert("No products selected!");
+      return;
+    }
+
+    const loggedInUser = getLoggedInUser();
+
+    if (!loggedInUser) {
+      alert("Please login first!");
+      navigate("/login");
       return;
     }
 
@@ -115,19 +143,15 @@ function BuyNow() {
       return;
     }
 
-    const loggedInUser = JSON.parse(
-      localStorage.getItem("loggedInUser") || "null"
-    );
-
-    if (!loggedInUser || !loggedInUser._id) {
-      alert("Please login first!");
-      navigate("/");
+    if (!/^[0-9]{10}$/.test(customer.phone.trim())) {
+      alert("Please enter a valid 10-digit phone number.");
       return;
     }
 
-    // Validate product details
     const orderProducts = products.map((product) => ({
-      productId: product.productId || product._id || product.id,
+      productId: String(
+        product.productId || product._id || product.id || ""
+      ),
       name: product.name,
       price: Number(product.price),
       image: product.image || "",
@@ -136,6 +160,7 @@ function BuyNow() {
 
     const invalidProduct = orderProducts.some(
       (product) =>
+        !product.productId ||
         !product.name ||
         !Number.isFinite(product.price) ||
         product.price < 0 ||
@@ -154,7 +179,6 @@ function BuyNow() {
       0
     );
 
-    // Detect cart checkout
     let savedCheckoutData = null;
 
     try {
@@ -170,7 +194,7 @@ function BuyNow() {
     setLoading(true);
 
     try {
-      // Save order to MongoDB
+      // Save order to backend
       const response = await fetch(
         "http://localhost:5000/api/orders",
         {
@@ -191,7 +215,15 @@ function BuyNow() {
         }
       );
 
-      const data = await response.json();
+      let data;
+
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(
+          "Invalid server response. Please check your backend."
+        );
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -199,9 +231,8 @@ function BuyNow() {
         );
       }
 
-      // Save order details for the success popup
       const orderDetails = {
-        orderId: data.order._id,
+        orderId: data.order?._id || data._id || "Order confirmed",
         customerName: customer.name.trim(),
         products: orderProducts,
         totalAmount: calculatedTotal,
@@ -211,57 +242,65 @@ function BuyNow() {
 
       setPlacedOrder(orderDetails);
 
-      // Optional local copy for existing frontend features
-      const oldOrders = JSON.parse(
-        localStorage.getItem("watchOrders") || "[]"
-      );
+      // Save a local copy of the order
+      let oldOrders = [];
+
+      try {
+        oldOrders = JSON.parse(
+          localStorage.getItem("watchOrders") || "[]"
+        );
+
+        if (!Array.isArray(oldOrders)) {
+          oldOrders = [];
+        }
+      } catch {
+        oldOrders = [];
+      }
 
       localStorage.setItem(
         "watchOrders",
         JSON.stringify([...oldOrders, orderDetails])
       );
 
-      // Clear purchased products from MongoDB cart
+      // Clear purchased items from localStorage cart
       if (isCartCheckout) {
+        const purchasedIds = orderProducts.map(
+          (product) => String(product.productId)
+        );
+
+        let oldCart = [];
+
         try {
-          const cartResponse = await fetch(
-            `http://localhost:5000/api/cart/${loggedInUser._id}`
+          oldCart = JSON.parse(
+            localStorage.getItem("watchCart") || "[]"
           );
 
-          if (cartResponse.ok) {
-            const cartData = await cartResponse.json();
-
-            const purchasedIds = orderProducts.map(
-              (product) => String(product.productId)
-            );
-
-            for (const cartProduct of cartData.products || []) {
-              if (
-                purchasedIds.includes(
-                  String(cartProduct.productId)
-                )
-              ) {
-                await fetch(
-                  `http://localhost:5000/api/cart/${loggedInUser._id}/${cartProduct.productId}`,
-                  {
-                    method: "DELETE",
-                  }
-                );
-              }
-            }
+          if (!Array.isArray(oldCart)) {
+            oldCart = [];
           }
-        } catch (cartError) {
-          console.error(
-            "Order saved, but cart cleanup failed:",
-            cartError
-          );
+        } catch {
+          oldCart = [];
         }
+
+        const updatedCart = oldCart.filter(
+          (item) =>
+            !purchasedIds.includes(
+              String(item.productId || item._id || item.id || "")
+            )
+        );
+
+        localStorage.setItem(
+          "watchCart",
+          JSON.stringify(updatedCart)
+        );
+
+        window.dispatchEvent(new Event("cartUpdated"));
       }
 
-      // Clear checkout data
+      // Clear checkout data after successful order
       localStorage.removeItem("buyNowProduct");
+      localStorage.removeItem("checkoutProducts");
 
-      // Show popup only after order is saved
       setShowSuccess(true);
     } catch (error) {
       console.error("Place order error:", error);
@@ -275,7 +314,7 @@ function BuyNow() {
     }
   };
 
-  // Close popup and navigate
+  // Close success popup
   const handleSuccessClose = () => {
     setShowSuccess(false);
     navigate("/home");
@@ -311,7 +350,7 @@ function BuyNow() {
           {products.map((product) => (
             <Card
               className="buy-product-card mb-3"
-              key={String(product.id || product._id)}
+              key={String(product.id || product._id || product.productId)}
             >
               <Card.Img
                 variant="top"
@@ -334,7 +373,7 @@ function BuyNow() {
 
                 <h5 className="text-success">
                   Price: ₹
-                  {Number(product.price).toLocaleString("en-IN")}
+                  {Number(product.price || 0).toLocaleString("en-IN")}
                 </h5>
 
                 <div className="d-flex align-items-center gap-3 my-3">
@@ -344,7 +383,9 @@ function BuyNow() {
                     type="button"
                     variant="outline-dark"
                     onClick={() =>
-                      decreaseQuantity(product.id || product._id)
+                      decreaseQuantity(
+                        product.id || product._id || product.productId
+                      )
                     }
                     disabled={product.quantity <= 1 || loading}
                   >
@@ -357,7 +398,9 @@ function BuyNow() {
                     type="button"
                     variant="outline-dark"
                     onClick={() =>
-                      increaseQuantity(product.id || product._id)
+                      increaseQuantity(
+                        product.id || product._id || product.productId
+                      )
                     }
                     disabled={loading}
                   >
@@ -368,7 +411,7 @@ function BuyNow() {
                 <p>
                   Subtotal: ₹
                   {(
-                    Number(product.price) * product.quantity
+                    Number(product.price || 0) * product.quantity
                   ).toLocaleString("en-IN")}
                 </p>
               </Card.Body>
@@ -449,7 +492,11 @@ function BuyNow() {
                   <h5>Order Summary</h5>
 
                   {products.map((product) => (
-                    <p key={String(product.id || product._id)}>
+                    <p
+                      key={String(
+                        product.id || product._id || product.productId
+                      )}
+                    >
                       {product.name} × {product.quantity}
                     </p>
                   ))}
@@ -520,8 +567,7 @@ function BuyNow() {
           {placedOrder && (
             <>
               <p>
-                <strong>Order ID:</strong>{" "}
-                {placedOrder.orderId}
+                <strong>Order ID:</strong> {placedOrder.orderId}
               </p>
 
               <p>

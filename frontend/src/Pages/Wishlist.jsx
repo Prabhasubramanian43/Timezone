@@ -1,23 +1,82 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Container, Row, Col, Card, Button, } from "react-bootstrap";
+import { Container, Row, Col, Card, Button } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faHeart, faTrash, faCartShopping, faBolt,} from "@fortawesome/free-solid-svg-icons";
+import {
+  faHeart,
+  faTrash,
+  faCartShopping,
+  faBolt,
+} from "@fortawesome/free-solid-svg-icons";
 
 function Wishlist() {
   const navigate = useNavigate();
-
   const [wishlist, setWishlist] = useState([]);
 
-  // Load wishlist products
-  useEffect(() => {
-    const savedWishlist =
-      JSON.parse(localStorage.getItem("watchWishlist")) || [];
+  // Check login status
+  const isUserLoggedIn = () => {
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
 
-    setWishlist(savedWishlist);
+    let loggedInUser = null;
+
+    try {
+      loggedInUser = JSON.parse(
+        localStorage.getItem("loggedInUser")
+      );
+    } catch {
+      loggedInUser = null;
+    }
+
+    if (!isLoggedIn || !loggedInUser?._id) {
+      alert("Please login first!");
+      navigate("/login");
+      return false;
+    }
+
+    return true;
+  };
+
+  // Load wishlist from localStorage
+  const loadWishlist = () => {
+    try {
+      const savedWishlist = JSON.parse(
+        localStorage.getItem("watchWishlist") || "[]"
+      );
+
+      setWishlist(Array.isArray(savedWishlist) ? savedWishlist : []);
+    } catch {
+      setWishlist([]);
+    }
+  };
+
+  useEffect(() => {
+    loadWishlist();
+
+    const handleWishlistUpdate = () => {
+      loadWishlist();
+    };
+
+    window.addEventListener(
+      "wishlistUpdated",
+      handleWishlistUpdate
+    );
+
+    window.addEventListener("storage", handleWishlistUpdate);
+
+    return () => {
+      window.removeEventListener(
+        "wishlistUpdated",
+        handleWishlistUpdate
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleWishlistUpdate
+      );
+    };
   }, []);
 
-  // Save wishlist products
+  // Save updated wishlist
   const updateWishlist = (updatedWishlist) => {
     setWishlist(updatedWishlist);
 
@@ -25,12 +84,15 @@ function Wishlist() {
       "watchWishlist",
       JSON.stringify(updatedWishlist)
     );
+
+    window.dispatchEvent(new Event("wishlistUpdated"));
   };
 
-  // Remove from wishlist
+  // Remove product from wishlist
   const removeProduct = (id) => {
     const updatedWishlist = wishlist.filter(
-      (product) => product.id !== id
+      (product) =>
+        String(product.id || product._id) !== String(id)
     );
 
     updateWishlist(updatedWishlist);
@@ -38,23 +100,39 @@ function Wishlist() {
     alert("Product removed from wishlist!");
   };
 
-  // Add to cart without navigating
+  // Add product to cart
   const addToCart = (product) => {
-    const oldCart =
-      JSON.parse(localStorage.getItem("watchCart")) || [];
+    if (!isUserLoggedIn()) return;
+
+    let oldCart = [];
+
+    try {
+      oldCart = JSON.parse(
+        localStorage.getItem("watchCart") || "[]"
+      );
+
+      if (!Array.isArray(oldCart)) {
+        oldCart = [];
+      }
+    } catch {
+      oldCart = [];
+    }
+
+    const productId = String(product.id || product._id);
 
     const existingProduct = oldCart.find(
-      (item) => item.id === product.id
+      (item) =>
+        String(item.id || item._id || item.productId) === productId
     );
 
     let updatedCart;
 
     if (existingProduct) {
       updatedCart = oldCart.map((item) =>
-        item.id === product.id
+        String(item.id || item._id || item.productId) === productId
           ? {
               ...item,
-              quantity: (item.quantity || 1) + 1,
+              quantity: Number(item.quantity || 1) + 1,
             }
           : item
       );
@@ -65,6 +143,7 @@ function Wishlist() {
         ...oldCart,
         {
           ...product,
+          id: product.id || product._id,
           quantity: 1,
         },
       ];
@@ -76,10 +155,14 @@ function Wishlist() {
       "watchCart",
       JSON.stringify(updatedCart)
     );
+
+    window.dispatchEvent(new Event("cartUpdated"));
   };
 
   // Buy Now
   const buyNow = (product) => {
+    if (!isUserLoggedIn()) return;
+
     localStorage.setItem(
       "buyNowProduct",
       JSON.stringify({
@@ -129,7 +212,7 @@ function Wishlist() {
             sm={6}
             lg={4}
             className="mb-4"
-            key={product.id}
+            key={product.id || product._id}
           >
             <Card className="wishlist-product-card h-100">
               <Card.Img
@@ -155,11 +238,10 @@ function Wishlist() {
                 )}
 
                 <h5 className="text-success">
-                  ₹{product.price.toLocaleString("en-IN")}
+                  ₹{Number(product.price || 0).toLocaleString("en-IN")}
                 </h5>
 
                 <div className="wishlist-buttons d-grid gap-2 mt-auto">
-                  {/* Add to Cart */}
                   <Button
                     variant="dark"
                     onClick={() => addToCart(product)}
@@ -168,7 +250,6 @@ function Wishlist() {
                     to Cart
                   </Button>
 
-                  {/* Buy Now */}
                   <Button
                     variant="warning"
                     onClick={() => buyNow(product)}
@@ -176,10 +257,11 @@ function Wishlist() {
                     <FontAwesomeIcon icon={faBolt} /> Buy Now
                   </Button>
 
-                  {/* Remove */}
                   <Button
                     variant="outline-danger"
-                    onClick={() => removeProduct(product.id)}
+                    onClick={() =>
+                      removeProduct(product.id || product._id)
+                    }
                   >
                     <FontAwesomeIcon icon={faTrash} /> Remove
                   </Button>

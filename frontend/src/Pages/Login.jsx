@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+
 import Container from "react-bootstrap/Container";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
@@ -48,28 +49,28 @@ function Login() {
         return;
       }
 
-      // Check whether backend returned user details
+      // Check whether user details are available
       if (!data.user || !data.user._id) {
         setError(
-          "User ID is missing. Please check the login API in backend/routes/auth.js."
+          "User details are missing. Please check your backend login API."
         );
 
         console.log("Login response:", data);
         return;
       }
 
-      // Save login status
-      sessionStorage.setItem("isLoggedIn", "true");
+      // Save login status in localStorage
+      localStorage.setItem("isLoggedIn", "true");
 
       // Save logged-in user details
-      sessionStorage.setItem(
+      localStorage.setItem(
         "loggedInUser",
         JSON.stringify(data.user)
       );
 
       console.log("Logged-in user:", data.user);
 
-      // Notify App.jsx about the login status change
+      // Notify App.jsx about login status
       window.dispatchEvent(new Event("loginStatusChanged"));
 
       // Reset form
@@ -78,7 +79,7 @@ function Login() {
       // Show success message
       alert("Login successful!");
 
-      // Navigate to Home page
+      // Navigate to Home
       navigate("/home", { replace: true });
     } catch (err) {
       console.error("Login error:", err);
@@ -106,21 +107,18 @@ function Login() {
 
           <p>Welcome back!</p>
 
-          {/* Success Message */}
           {message && (
             <Alert variant="success">
               {message}
             </Alert>
           )}
 
-          {/* Error Message */}
           {error && (
             <Alert variant="danger">
               {error}
             </Alert>
           )}
 
-          {/* Login Form */}
           <Form onSubmit={handleSubmit}>
             <Form.Group className="mb-3">
               <Form.Label>Email</Form.Label>

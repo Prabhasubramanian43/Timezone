@@ -10,7 +10,11 @@ import Button from "react-bootstrap/Button";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import { faHeart, faCartShopping, faBolt, } from "@fortawesome/free-solid-svg-icons";
+import {
+  faHeart,
+  faCartShopping,
+  faBolt,
+} from "@fortawesome/free-solid-svg-icons";
 
 // Men Images
 import men1 from "../assets/p11.jpeg";
@@ -33,22 +37,19 @@ import smart from "../assets/ksw.jpeg";
 import digital from "../assets/kdw.jpeg";
 
 function Categories() {
-  
-const [searchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
-const [search, setSearch] = useState(
-  searchParams.get("search") || ""
-);
+  const [search, setSearch] = useState(
+    searchParams.get("search") || ""
+  );
 
-const navigate = useNavigate();
+  // Update search when URL query changes
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+  }, [searchParams]);
 
-useEffect(() => {
-  setSearch(searchParams.get("search") || "");
-}, [searchParams]);
-
-
-
-  // Products
+  // Product List
   const products = [
     {
       id: 1,
@@ -184,24 +185,49 @@ useEffect(() => {
     );
   });
 
-  // Add to Cart
-  // Product save aagum; current page change aagadhu.
+  // Check login
+  const checkLogin = () => {
+    const isLoggedIn =
+      localStorage.getItem("isLoggedIn") === "true";
+
+    const loggedInUser = JSON.parse(
+      localStorage.getItem("loggedInUser") || "null"
+    );
+
+    if (!isLoggedIn || !loggedInUser || !loggedInUser._id) {
+      alert("Please login first!");
+      navigate("/login");
+      return false;
+    }
+
+    return true;
+  };
+
+  // ADD TO CART
   const addToCart = (product) => {
-    const oldCart =
-      JSON.parse(localStorage.getItem("watchCart")) || [];
+    if (!checkLogin()) {
+      return;
+    }
+
+    const oldCart = JSON.parse(
+      localStorage.getItem("watchCart") || "[]"
+    );
+
+    const productId = String(product.id);
 
     const existingProduct = oldCart.find(
-      (item) => item.id === product.id
+      (item) => String(item.id || item._id) === productId
     );
 
     let updatedCart;
 
     if (existingProduct) {
       updatedCart = oldCart.map((item) =>
-        item.id === product.id
+        String(item.id || item._id) === productId
           ? {
               ...item,
-              quantity: (item.quantity || 1) + 1,
+              id: productId,
+              quantity: (Number(item.quantity) || 1) + 1,
             }
           : item
       );
@@ -212,6 +238,7 @@ useEffect(() => {
         ...oldCart,
         {
           ...product,
+          id: productId,
           quantity: 1,
         },
       ];
@@ -223,16 +250,24 @@ useEffect(() => {
       "watchCart",
       JSON.stringify(updatedCart)
     );
+
+    window.dispatchEvent(new Event("cartUpdated"));
   };
 
-  // Add to Wishlist
-  // Product save aagum; current page change aagadhu.
+  // ADD TO WISHLIST
   const addToWishlist = (product) => {
-    const oldWishlist =
-      JSON.parse(localStorage.getItem("watchWishlist")) || [];
+    if (!checkLogin()) {
+      return;
+    }
+
+    const oldWishlist = JSON.parse(
+      localStorage.getItem("watchWishlist") || "[]"
+    );
+
+    const productId = String(product.id);
 
     const alreadyExists = oldWishlist.some(
-      (item) => item.id === product.id
+      (item) => String(item.id || item._id) === productId
     );
 
     if (alreadyExists) {
@@ -240,24 +275,39 @@ useEffect(() => {
       return;
     }
 
-    const updatedWishlist = [...oldWishlist, product];
+    const updatedWishlist = [
+      ...oldWishlist,
+      {
+        ...product,
+        id: productId,
+      },
+    ];
 
     localStorage.setItem(
       "watchWishlist",
       JSON.stringify(updatedWishlist)
     );
 
+    window.dispatchEvent(new Event("wishlistUpdated"));
+
     alert(`${product.name} added to wishlist successfully!`);
   };
 
-  // Buy Now - Separate Page
+  // BUY NOW
   const buyNow = (product) => {
+    if (!checkLogin()) {
+      return;
+    }
+
+    const selectedProduct = {
+      ...product,
+      id: String(product.id),
+      quantity: 1,
+    };
+
     localStorage.setItem(
       "buyNowProduct",
-      JSON.stringify({
-        ...product,
-        quantity: 1,
-      })
+      JSON.stringify(selectedProduct)
     );
 
     navigate("/buynow");

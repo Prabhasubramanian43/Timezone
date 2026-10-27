@@ -1,8 +1,23 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Container, Row, Col, Card, Button, Alert, Spinner, } from "react-bootstrap";
+
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Button,
+  Alert,
+  Spinner,
+} from "react-bootstrap";
+
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faHeart, faCartShopping, faBolt, } from "@fortawesome/free-solid-svg-icons";
+
+import {
+  faHeart,
+  faCartShopping,
+  faBolt,
+} from "@fortawesome/free-solid-svg-icons";
 
 import "../app.css";
 
@@ -14,7 +29,7 @@ import watch4 from "../assets/p3.jpeg";
 import watch5 from "../assets/p4.jpeg";
 import watch6 from "../assets/p5.jpeg";
 
-// Map MongoDB image filenames to imported images
+// Map database image filenames to imported images
 const watchImages = {
   "p11.jpeg": watch1,
   "p12.jpeg": watch2,
@@ -31,7 +46,7 @@ function Products() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Fetch products from MongoDB through the backend API
+  // Fetch products from the existing backend API
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -47,12 +62,19 @@ function Products() {
           );
         }
 
-        setProducts(data);
-      } catch (error) {
-        console.error("Fetch products error:", error);
+        // Support both array and { products: [...] } responses
+        const productList = Array.isArray(data)
+          ? data
+          : Array.isArray(data.products)
+          ? data.products
+          : [];
+
+        setProducts(productList);
+      } catch (err) {
+        console.error("Fetch products error:", err);
 
         setError(
-          "Unable to load products. Please check your backend server."
+          "Unable to load products. Please check whether your backend server is running."
         );
       } finally {
         setLoading(false);
@@ -63,61 +85,105 @@ function Products() {
   }, []);
 
   // ADD TO CART
-  // ADD TO CART - MongoDB
-  const addToCart = async (product) => {
-    try {
-      // Get logged-in user
-      const loggedInUser = JSON.parse(
-        localStorage.getItem("loggedInUser")
+  const addToCart = (product) => {
+    // Check login status
+    const isLoggedIn =
+      localStorage.getItem("isLoggedIn") === "true";
+
+    const loggedInUser = JSON.parse(
+      localStorage.getItem("loggedInUser") || "null"
+    );
+
+    if (!isLoggedIn || !loggedInUser || !loggedInUser._id) {
+      alert("Please login first!");
+      navigate("/login");
+      return;
+    }
+
+    // Get existing cart
+    const oldCart = JSON.parse(
+      localStorage.getItem("watchCart") || "[]"
+    );
+
+    // Use a consistent product ID
+    const productId = String(
+      product._id || product.id
+    );
+
+    if (!productId || productId === "undefined") {
+      alert("Product ID is missing. Please check the product data.");
+      return;
+    }
+
+    // Check if product already exists
+    const existingProduct = oldCart.find(
+      (item) => String(item.id || item._id) === productId
+    );
+
+    let updatedCart;
+
+    if (existingProduct) {
+      // Increase quantity
+      updatedCart = oldCart.map((item) =>
+        String(item.id || item._id) === productId
+          ? {
+              ...item,
+              quantity: (Number(item.quantity) || 1) + 1,
+            }
+          : item
       );
 
-      if (!loggedInUser || !loggedInUser._id) {
-        alert("Please login first!");
-        navigate("/");
-        return;
-      }
+      alert(`${product.name} quantity increased in cart!`);
+    } else {
+      // Add a new product
+      const cartProduct = {
+        ...product,
+        id: productId,
+        image:
+          watchImages[product.image] || product.image,
+        quantity: 1,
+      };
 
-      // Send product to MongoDB backend
-      const response = await fetch(
-        `http://localhost:5000/api/cart/${loggedInUser._id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            product: {
-              productId: product._id,
-              name: product.name,
-              price: product.price,
-              image: product.image,
-              brand: product.brand || "TIMEZONE",
-              quantity: 1,
-            },
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to add product");
-      }
+      updatedCart = [...oldCart, cartProduct];
 
       alert(`${product.name} added to cart successfully!`);
-    } catch (error) {
-      console.error("Add to cart error:", error);
-      alert(error.message || "Unable to connect to cart database.");
     }
+
+    // Save cart in localStorage
+    localStorage.setItem(
+      "watchCart",
+      JSON.stringify(updatedCart)
+    );
+
+    // Notify other components about cart changes
+    window.dispatchEvent(new Event("cartUpdated"));
   };
 
   // ADD TO WISHLIST
   const addToWishlist = (product) => {
-    const oldWishlist =
-      JSON.parse(localStorage.getItem("watchWishlist")) || [];
+    const isLoggedIn =
+      localStorage.getItem("isLoggedIn") === "true";
+
+    const loggedInUser = JSON.parse(
+      localStorage.getItem("loggedInUser") || "null"
+    );
+
+    if (!isLoggedIn || !loggedInUser || !loggedInUser._id) {
+      alert("Please login first!");
+      navigate("/login");
+      return;
+    }
+
+    const oldWishlist = JSON.parse(
+      localStorage.getItem("watchWishlist") || "[]"
+    );
+
+    const productId = String(
+      product._id || product.id
+    );
 
     const alreadyExists = oldWishlist.some(
-      (item) => item.id === product._id
+      (item) => String(item.id || item._id) === productId
     );
 
     if (alreadyExists) {
@@ -125,13 +191,16 @@ function Products() {
       return;
     }
 
+    const wishlistProduct = {
+      ...product,
+      id: productId,
+      image:
+        watchImages[product.image] || product.image,
+    };
+
     const updatedWishlist = [
       ...oldWishlist,
-      {
-        ...product,
-        id: product._id,
-        image: watchImages[product.image] || product.image,
-      },
+      wishlistProduct,
     ];
 
     localStorage.setItem(
@@ -139,15 +208,31 @@ function Products() {
       JSON.stringify(updatedWishlist)
     );
 
+    window.dispatchEvent(new Event("wishlistUpdated"));
+
     alert(`${product.name} added to wishlist successfully!`);
   };
 
   // BUY NOW
   const buyNow = (product) => {
+    const isLoggedIn =
+      localStorage.getItem("isLoggedIn") === "true";
+
+    const loggedInUser = JSON.parse(
+      localStorage.getItem("loggedInUser") || "null"
+    );
+
+    if (!isLoggedIn || !loggedInUser || !loggedInUser._id) {
+      alert("Please login first!");
+      navigate("/login");
+      return;
+    }
+
     const selectedProduct = {
       ...product,
-      id: product._id,
-      image: watchImages[product.image] || product.image,
+      id: String(product._id || product.id),
+      image:
+        watchImages[product.image] || product.image,
       quantity: 1,
     };
 
@@ -179,6 +264,13 @@ function Products() {
         <Alert variant="danger">
           {error}
         </Alert>
+
+        <Button
+          variant="dark"
+          onClick={() => window.location.reload()}
+        >
+          Try Again
+        </Button>
       </Container>
     );
   }
@@ -197,7 +289,7 @@ function Products() {
         <Row>
           {products.map((product) => (
             <Col
-              key={product._id}
+              key={product._id || product.id}
               xs={12}
               sm={6}
               md={4}
